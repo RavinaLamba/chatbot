@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gemini Chatbot with Typing Effect</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0f172a;
+      font-family: system-ui, sans-serif;
+      color: #e2e8f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .chatbox {
+      width: 90%;
+      max-width: 800px;
+      height: 80vh;
+      background: #1e293b;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .messages {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .msg {
+      max-width: 70%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      white-space: pre-wrap;
+    }
+    .msg.user {
+      background: #4f46e5;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.bot {
+      background: #334155;
+      color: #f1f5f9;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    .composer {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      border-top: 1px solid #475569;
+    }
+    .composer textarea {
+      flex: 1;
+      resize: none;
+      border-radius: 8px;
+      border: none;
+      padding: 10px;
+      font-size: 15px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    .composer button {
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .typing-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 18px;
+      background: #f1f5f9;
+      margin-left: 4px;
+      animation: blink 1s steps(1) infinite;
+    }
+    @keyframes blink {
+      0%,100% {opacity:1;}
+      50% {opacity:0;}
+    }
+  </style>
+</head>
+<body>
+  <div class="chatbox">
+    <div class="messages" id="messages"></div>
+    <form class="composer" id="chatForm">
+      <textarea id="input" rows="1" placeholder="Type a message..."></textarea>
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script>
+    const API_KEY = "AIzaSyCn94DMDYEMzaODYXit2NQXawKhoO3Z3Dw"; // ⚠️ demo only
+    const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+
+    const messagesEl = document.getElementById("messages");
+    const form = document.getElementById("chatForm");
+    const input = document.getElementById("input");
+
+    // Append message bubble
+    function appendMessage(text, role) {
+      const div = document.createElement("div");
+      div.className = "msg " + role;
+      div.textContent = text;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return div;
+    }
+
+    // Typing effect: reveal characters one by one
+    async function typeText(node, text, speed=30) {
+      node.textContent = "";
+      const cursor = document.createElement("span");
+      cursor.className = "typing-cursor";
+      node.appendChild(cursor);
+      for (let i=0; i<text.length; i++) {
+        node.textContent = text.slice(0,i+1);
+        node.appendChild(cursor);
+        await new Promise(r => setTimeout(r, speed));
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+      cursor.remove();
+    }
+
+    // Fetch reply from Gemini
+    async function getBotReply(prompt) {
+      const resp = await fetch(API_URL , {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          'X-goog-api-key': 'AIzaSyCn94DMDYEMzaODYXit2NQXawKhoO3Z3Dw'
+
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+      const data = await resp.json();
+      console.log("Gemini response:", data);
+      return data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, no reply.";
+    }
+
+    // Handle form submit
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const userText = input.value.trim();
+      if (!userText) return;
+
+      appendMessage(userText, "user");
+      input.value = "";
+
+      const botBubble = appendMessage("...", "bot");
+      try {
+        const reply = await getBotReply(userText);
+        await typeText(botBubble, reply, 25);
+      } catch (err) {
+        botBubble.textContent = "Error: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
